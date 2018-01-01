@@ -99,8 +99,16 @@ struct Lang
   }
 
 
+  auto reset()
+  {
+    queue.clear();
+    queue.push(0);
+  }
+
+
   auto apply(const int t)
   {
+    std::cout << "applying " << t << std::endl;
     if( queue.empty() )
     {
       return;
@@ -142,8 +150,6 @@ struct Lang
     }
 
     auto index = entry.pop();
-
-    std::cout << "searching " << index << " type " << lang[index] << std::endl;
 
     switch( lang[index] )
     {
@@ -262,6 +268,7 @@ struct Lang
   }
 
 
+  // gotta figure out correct accept state
   bool accept(entry_t& entry)
   {
     return entry.tokens.empty() && ( entry.stk.empty() || nullable(entry.stk.front() ) );
@@ -275,7 +282,6 @@ struct Lang
 
     while( !queue.empty() )
     {
-      std::cout << "queue pop" << std::endl;
       current = queue.pop();
 
       if( accept(current) )
@@ -288,7 +294,6 @@ struct Lang
 
     while( !out.empty() )
     {
-      std::cout << "out pop" << std::endl;
       current = out.pop();
 
       if( accept(current) )

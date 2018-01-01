@@ -1,6 +1,21 @@
 #include "parsing.hpp"
 
 #include <iostream>
+#include <string>
+
+auto map(char c)
+{
+  if( c == '(' )
+  {
+    return 5;
+  } else if ( c == ')' )
+  {
+    return 6;
+  } else
+  {
+    exit(1);
+  }
+}
 
 int main(int argc, char* argv[])
 {
@@ -18,8 +33,15 @@ int main(int argc, char* argv[])
 
   auto l = Lang(parens);
 
-  l.apply(5);
-  l.apply(6);
 
-  std::cout << "Accepted? \n" << l.accepted() << std::endl;
+  auto line = std::string();
+  while( getline(std::cin, line) )
+  {
+    for( auto& c : line )
+    {
+      l.apply(map(c));
+    }
+    std::cout << "Accepted? \n" << l.accepted() << std::endl;
+    l.reset();
+  }
 }

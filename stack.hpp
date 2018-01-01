@@ -92,6 +92,13 @@ struct stack
   }
 
 
+  auto clear()
+  {
+    head = nullptr;
+    end = head.get();
+  }
+
+
   stack<T> fork()
   {
     return stack<T>(head, end);
