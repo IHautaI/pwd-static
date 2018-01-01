@@ -15,7 +15,7 @@ making some observations through multiple failures.
 
 Search by node type:
 
-* And - search left child, then right (push right child on stack)
+* And - search left child, then right (push right child on stack), also search right child if this is nullable (copy stack)
 * Or - search left child, search right child with stack copy (stack copies use shared tails)
 * Token - if a match, pop stack and search the returned index, else destruct
 * Empty - if token stack is empty, add to output stack (the staging for the next search round)
