@@ -19,7 +19,7 @@ auto map(char c)
 
 int main(int argc, char* argv[])
 {
-  // parens lang L = L(L) | e
+  // parens lang L = L(L) | e = (or (and L (and '(' (and L ')'))) empty )
   // ->
   // 1 | 2 0 | 4 2 0 0 | 0 0 5 2 0 0 0 0 |
   // 0 0 0 0 0 0 4 6 0 0 0 0 0 0 0 0 | 0 0 0 0 0 0 0 0 0 0 0 0 0 ...
@@ -32,7 +32,12 @@ int main(int argc, char* argv[])
               0,0,0,0,0,0,0,0,0,0,0,0,0};
 
   auto l = Lang(parens);
+  l.init();
 
+  // auto s = l.queue.pop();
+  // l.fork_to(s, 11);
+  // l.queue.push(std::move(s));
+  // std::cout << l.queue.head->next->value;
 
   auto line = std::string();
   while( getline(std::cin, line) )

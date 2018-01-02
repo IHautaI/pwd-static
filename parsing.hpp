@@ -63,14 +63,36 @@ struct Lang
     : stk()
     , tokens()
     {}
+
+    friend std::ostream& operator<<(std::ostream& out, entry_t& e)
+    {
+      auto n = e.fork();
+      auto& t = n.tokens;
+      auto& s = n.stk;
+
+      while( !s.empty() )
+      {
+        std::cout << s.pop() << " -> ";
+      }
+      std::cout << " | ";
+
+      while( !t.empty() )
+      {
+        std::cout << t.pop() << " -> ";
+      }
+      std::cout << std::endl;
+      return out;
+    }
   };
 
   std::unique_ptr<int[]> lang;
+  std::unique_ptr<bool[]> nullable;
   int size;
   stack<entry_t> queue;
 
   Lang()
   : lang(nullptr)
+  , nullable(nullptr)
   , size(0)
   , queue()
   {
@@ -80,6 +102,7 @@ struct Lang
   template<int N>
   Lang(int (&inp)[N])
   : lang(new int[N])
+  , nullable(new bool[N])
   , size(N)
   , queue()
   {
@@ -96,6 +119,15 @@ struct Lang
   static int right(int i)
   {
     return 2 * (i + 1);
+  }
+
+
+  auto init()
+  {
+    for( auto i = 0; i < size; ++i )
+    {
+      set_nullable(i);
+    }
   }
 
 
@@ -116,16 +148,37 @@ struct Lang
 
     queue.front().tokens.push_back(t);
 
+    auto s = queue.head->next;
+    while( s != nullptr )
+    {
+      s->value.tokens.push_back(t);
+      s = s->next;
+    }
+
     stack<entry_t> out;
     entry_t current;
 
     while( !queue.empty() )
     {
       current = queue.pop();
+      // std::cout << "searching:\n"
+      //           << current
+      //           << std::endl;
       search(current, out);
     }
+
     queue = std::move(out);
+
+    auto c = queue.fork();
+    // std::cout << "out" << std::endl;
+    while( !c.empty() )
+    {
+      current = c.pop();
+      // std::cout << current;
+      // std::cout << std::endl;
+    }
   }
+
 
   void fork_to(entry_t& entry, int to)
   {
@@ -165,19 +218,18 @@ struct Lang
 
       case 1: // OR - ADD SECOND SIDE TO CURRENT QUEUE, CONTINUE SEARCH WITH THIS ONE
         fork_to(entry, right(index));
-
         entry.push(left(index));
         search(entry, out);
         break;
 
       case 2: // AND - ADD RIGHT, SEARCH LEFT, if nullable add right as
               // second search w/o left
-        entry.push(right(index));
-        if( nullable(left(index)) )
+        if( nullable[left(index)] )
         {
-          queue.push(entry.fork());
+          fork_to(entry, right(index));
         }
 
+        entry.push(right(index));
         entry.push(left(index));
         search(entry, out);
         break;
@@ -193,16 +245,16 @@ struct Lang
         out.push(std::move(entry));
         break;
 
-      default: // TOKENS - check entry's fork of the tokens, if front
-               // matches, pop tokens, search entry
-               // else dead
-        if( !entry.tokens.empty() && entry.tokens.front() == lang[index] )
+      default: // TOKENS - check entry's token, if front
+               // matches, pop token, search entry
+        if( entry.tokens.empty() ) // waiting for token... put back
+        {
+          entry.push(index);
+          out.push(std::move(entry));
+        } else if( entry.tokens.front() == lang[index] )
         {
           entry.tokens.pop();
           search(entry, out);
-        } else
-        {
-          return;
         }
         break;
     }
@@ -211,15 +263,16 @@ struct Lang
 
   bool nonterm_nullable(int i, stack<std::pair<int, bool>>& prev)
   {
+    // std::cout << "nonterm nullable: " << i << std::endl;
     prev.push(std::make_pair(i, false));
     auto* s = prev.head.get();
-    s->value.second = nullable(lang[left(i)], prev);
+    s->value.second = set_nullable(left(i), prev);
+    // std::cout << "nonterm " << i << " " << s->value.second << std::endl;
     return s->value.second;
   }
 
 
-  // can be precomputed...
-  bool nullable(int i, stack<std::pair<int, bool>>& prev)
+  bool set_nullable(int i, stack<std::pair<int, bool>>& prev)
   {
     auto* next = prev.head.get();
 
@@ -230,11 +283,11 @@ struct Lang
         break;
 
       case 1: // OR
-        return nullable(left(i), prev) || nullable(right(i), prev);
+        return set_nullable(left(i), prev) || set_nullable(right(i), prev);
         break;
 
       case 2: // AND
-        return nullable(left(i), prev) && nullable(right(i), prev);
+        return set_nullable(left(i), prev) && set_nullable(right(i), prev);
         break;
 
       case 3: // STAR
@@ -242,6 +295,7 @@ struct Lang
         break;
 
       case 4: // Nonterminal
+        // check if we've visited this nonterm, return value if we have
         while( next != nullptr )
         {
           if( next->value.first == i )
@@ -251,50 +305,76 @@ struct Lang
           next = next->next.get();
         }
 
+        // else add as false, then follow it to see if that's true
         return nonterm_nullable(i, prev);
         break;
 
-      default:
+      default: // tokens
         return false;
         break;
     }
   }
 
 
-  bool nullable(int i)
+  void set_nullable(int i)
   {
     stack<std::pair<int, bool>> prev;
-    return nullable(i, prev);
+    nullable[i] = set_nullable(i, prev);
   }
 
 
-  // gotta figure out correct accept state
-  bool accept(entry_t& entry)
+  bool accept(entry_t& e)
   {
-    return entry.tokens.empty() && ( entry.stk.empty() || nullable(entry.stk.front() ) );
+    if( e.tokens.empty() )
+    {
+      while( !e.stk.empty() )
+      {
+        if( !nullable[e.stk.pop()] )
+        {
+          return false;
+        }
+      }
+      return true;
+    } else
+    {
+      while( !e.stk.empty() )  // remove nullable entries, try to use tokens ?
+      {
+        int start = e.stk.pop();
+        int s = start;
+        while( nullable[s] )
+        {
+          s = e.stk.pop();
+        }
+
+        if( s != start && !nullable[s] )
+        {
+          e.push(s);
+          search(e, queue);
+        } else
+        {
+          break;
+        }
+      }
+      return false;
+    }
   }
 
 
   bool accepted()
   {
+    for( auto i = 0; i < size; ++i )
+    {
+      // std::cout << "(" << i << "," << nullable[i] << "), ";
+    }
+    std::cout << std::endl;
+
     stack<entry_t> out;
     entry_t current;
 
     while( !queue.empty() )
     {
       current = queue.pop();
-
-      if( accept(current) )
-      {
-        return true;
-      }
-
-      search(current, out);
-    }
-
-    while( !out.empty() )
-    {
-      current = out.pop();
+      // std::cout << current;
 
       if( accept(current) )
       {
