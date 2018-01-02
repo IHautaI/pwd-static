@@ -140,7 +140,7 @@ struct Lang
 
   auto apply(const int t)
   {
-    std::cout << "applying " << t << std::endl;
+    // std::cout << "applying " << t << std::endl;
     if( queue.empty() )
     {
       return;
@@ -219,7 +219,9 @@ struct Lang
       case 1: // OR - ADD SECOND SIDE TO CURRENT QUEUE, CONTINUE SEARCH WITH THIS ONE
         fork_to(entry, right(index));
         entry.push(left(index));
-        search(entry, out);
+        // search(entry, out);
+        queue.push(std::move(entry));
+
         break;
 
       case 2: // AND - ADD RIGHT, SEARCH LEFT, if nullable add right as
@@ -231,13 +233,17 @@ struct Lang
 
         entry.push(right(index));
         entry.push(left(index));
-        search(entry, out);
+        // search(entry, out);
+        queue.push(std::move(entry));
+
         break;
 
       case 3: // STAR - search contained node, then STAR again
         entry.push(index);
         entry.push(left(index));
-        search(entry, out);
+        // search(entry, out);
+        queue.push(std::move(entry));
+
         break;
 
       case 4: // NONTERM - add pointed-to index, add to output for next round
@@ -254,7 +260,8 @@ struct Lang
         } else if( entry.tokens.front() == lang[index] )
         {
           entry.tokens.pop();
-          search(entry, out);
+          // search(entry, out);
+          queue.push(std::move(entry));
         }
         break;
     }
