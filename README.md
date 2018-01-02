@@ -1,15 +1,15 @@
 # pwd-static
 
-Parsing With Derivatives
+Parsing with Derivatives
 Alternate version
 
-This version of parsing with derivatives uses a static language representation.  The 
+This version of parsing with derivatives uses a static language representation.  The
 derivative is implemented as a search rather than generating new nodes in the language.
 This allows the nullability of all nodes to be precalculated.
 
 Current version is a recognizer, full parser to come.
 
-This project was inspired by playing with parsing with derivatives in C++, and 
+This project was inspired by playing with parsing with derivatives in C++, and
 making some observations through multiple failures.
 
 
@@ -22,3 +22,6 @@ Search by node type:
 * Star - search left child, then this node again (push Star node on stack)
 * Null - No need for Null nodes
 
+
+This leads to something more like standard parsing with a stack, but retains
+the nice properties of PwD.

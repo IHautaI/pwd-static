@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 
-auto map(char c)
+int map(char c)
 {
   if( c == '(' )
   {
@@ -24,14 +24,13 @@ int main(int argc, char* argv[])
   // 1 | 2 0 | 4 2 0 0 | 0 0 5 2 0 0 0 0 |
   // 0 0 0 0 0 0 4 6 0 0 0 0 0 0 0 0 | 0 0 0 0 0 0 0 0 0 0 0 0 0 ...
 
-  int parens[45] = {                       1,
+  Lang<49> l{                         1,
                              2,                       0,
                      4,             2,            0,      0,
                  0,      0,      5,      2,     0,  0,  0,  0,
                0,  0,  0,  0,  0,  0,  4,  6,  0,0,0,0,0,0,0,0,
               0,0,0,0,0,0,0,0,0,0,0,0,0};
 
-  auto l = Lang(parens);
   l.init();
 
   // auto s = l.queue.pop();
@@ -39,7 +38,7 @@ int main(int argc, char* argv[])
   // l.queue.push(std::move(s));
   // std::cout << l.queue.head->next->value;
 
-  auto line = std::string();
+  std::string line;
   while( getline(std::cin, line) )
   {
     for( auto& c : line )
