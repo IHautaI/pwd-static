@@ -25,6 +25,7 @@ struct stack
 
   std::shared_ptr<stack_node<T>> head;
   std::shared_ptr<stack_node<T>> end;
+  stack_node<T>* last;
 
 
   bool empty()
@@ -36,6 +37,11 @@ struct stack
   T pop()
   {
     auto t = std::move(head->value);
+    if( last == head.get() )
+    {
+      last = head->next.get();
+    }
+
     head = head->next;
     return t;
   }
@@ -64,14 +70,11 @@ struct stack
       if( head == end )
       {
         push(std::move(t));
+        last = head.get();
       } else // splice
       {
-        auto n = head;
-        while( n->next != end )
-        {
-          n = n->next;
-        }
-        n->next = std::make_shared<stack_node<T>>(std::move(t), end);
+        last->next = std::make_shared<stack_node<T>>(std::move(t), end);
+        last = last->next.get();
       }
   }
 
@@ -81,14 +84,11 @@ struct stack
       if( head == end )
       {
         push(t);
+        last = head.get();
       } else // splice
       {
-        auto n = head;
-        while( n->next != end )
-        {
-          n = n->next;
-        }
-        n->next = std::make_shared<stack_node<T>>(t, end);
+        last->next = std::make_shared<stack_node<T>>(t, end);
+        last = last->next.get();
       }
   }
 
@@ -96,30 +96,36 @@ struct stack
   void clear()
   {
     head = end;
+    last = end.get();
   }
 
 
   stack<T> fork()
   {
-    return stack<T>(head, end);
+    return stack<T>(head, end, last);
   }
 
 
   stack()
   : head(new stack_node<T>(T(), nullptr))
   , end(head)
+  , last(end.get())
   {}
 
 
-  stack(std::shared_ptr<stack_node<T>>& head, std::shared_ptr<stack_node<T>>& end)
+  stack(std::shared_ptr<stack_node<T>>& head,
+        std::shared_ptr<stack_node<T>>& end,
+        stack_node<T>* last)
   : head(head)
   , end(end)
+  , last(end.get())
   {}
 
 
   stack(stack&& o)
   : head(o.head)
   , end(o.end)
+  , last(o.last)
   {}
 
 
@@ -127,6 +133,7 @@ struct stack
   {
     head = o.head;
     end = o.end;
+    last = o.last;
     return *this;
   }
 

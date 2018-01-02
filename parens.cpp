@@ -33,19 +33,19 @@ int main(int argc, char* argv[])
 
   l.init();
 
-  // auto s = l.queue.pop();
-  // l.fork_to(s, 11);
-  // l.queue.push(std::move(s));
-  // std::cout << l.queue.head->next->value;
-
   std::string line;
   while( getline(std::cin, line) )
   {
+    if( line.empty() )
+    {
+      break;
+    }
+
     for( auto& c : line )
     {
       l.apply(map(c));
     }
-    std::cout << "Accepted? \n" << l.accepted() << std::endl;
+    std::cout << "Accepted? " << l.accepted() << "\n" << std::endl;
     l.reset();
   }
 }
