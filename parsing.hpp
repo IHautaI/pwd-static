@@ -90,19 +90,15 @@ struct Lang
 
     friend std::ostream& operator<<(std::ostream& out, entry_t& e)
     {
-      auto n = e.fork();
-      auto& t = n.tokens;
-      auto& s = n.stk;
-
-      while( !s.empty() )
+      for( auto it = e.stk.begin(); it != e.stk.end(); ++it )
       {
-        std::cout << s.pop() << " -> ";
+        std::cout << *it << " -> ";
       }
       std::cout << " | ";
 
-      while( !t.empty() )
+      for( auto it = e.tokens.begin(); it != e.tokens.end(); ++it )
       {
-        std::cout << t.pop() << " -> ";
+        std::cout << *it << " -> ";
       }
       std::cout << std::endl;
       return out;
@@ -128,6 +124,7 @@ struct Lang
   void init()
   {
     queue.push(0);
+    print(std::cout);
 
     auto prev = stack<std::pair<int, bool>>();
     for( auto i = 0; i < size; ++i )
@@ -135,13 +132,11 @@ struct Lang
       nullable[i] = set_nullable(i, prev);
     }
 
-    std::pair<int, bool> n;
-    while( !prev.empty() )
+    for( auto it = prev.begin(); it != prev.end(); ++it )
     {
-      n = prev.pop();
-      if( lang[n.first] == 4 )
+      if( lang[it->first] == 4 )
       {
-        nullable[n.first] = nullable[left(n.first)];
+        nullable[it->first] = nullable[left(it->first)];
       }
     }
   }
@@ -156,47 +151,42 @@ struct Lang
 
   void add_to_tails(const int t)
   {
-    auto hits = std::vector<stack<int>::stack_node<int>*>();
-    std::vector<stack<int>::stack_node<int>*>::iterator it;
+    using s_ptr = stack<int>::stack_node<int>*;
 
-    auto q = queue.head;
-    entry_t n;
+    auto hits = std::vector<s_ptr>();
+    std::vector<s_ptr>::iterator it;
+    stack<int>::s_iter<int> i;
 
-    while( q != queue.end )
+    for( auto n = queue.begin(); n != queue.end(); ++n )
     {
-      auto& n = q->value.tokens;
-      auto i = n.head;
-      //
-      if( i == n.end )
+      if( n->tokens.empty() )
       {
-        n.push(t);
-        hits.push_back(n.head.get());
+        auto b = n->tokens.push(t);
+        hits.push_back(b);
       } else
       {
-        while( i->next != n.end )
+        i = n->tokens.begin();
+        while( i.next() != n->tokens.nil.get() )
         {
-          i = i->next;
-        } // now i should point to last element before end
+          ++i;
+        }
 
-        it = std::find(hits.begin(), hits.end(), i.get());
+        it = std::find(hits.begin(), hits.end(), i.node());
         if( it == hits.end() )
         {
-          n.push_back(t);
-          hits.push_back(i->next.get());
+          auto b = n->tokens.push_back(t);
+          hits.push_back(b);
         }
       }
-      q = q->next;
     }
   }
 
 
   std::ostream& print(std::ostream& out)
   {
-    auto e = queue.head;
-    while( e != queue.end )
+    for( auto ele = queue.begin(); ele != queue.end(); ++ele )
     {
-      out << e->value;
-      e = e->next;
+      out << *ele;
     }
     return out;
   }
@@ -307,15 +297,12 @@ struct Lang
 
   bool set_nullable(int i, stack<std::pair<int, bool>>& prev)
   {
-    auto* next = prev.head.get();
-
-    while( next != nullptr )
+    for( auto it = prev.begin(); it != prev.end(); ++it )
     {
-      if( next->value.first == i )
+      if( it->first == i )
       {
-        return next->value.second;
+        return it->second;
       }
-      next = next->next.get();
     }
 
     switch( lang[i] )
@@ -346,6 +333,7 @@ struct Lang
         prev.push(std::make_pair(i, false));
         break;
     }
+
     return prev.front().second;
   }
 
@@ -353,11 +341,12 @@ struct Lang
   bool accept(entry_t& e)
   {
     std::cout << e;
+
     if( e.tokens.empty() )
     {
-      while( !e.stk.empty() )
+      for( auto it = e.stk.begin(); it != e.stk.end(); ++it )
       {
-        if( !nullable[e.stk.pop()] ) // requires tokens to complete
+        if( !nullable[*it] ) // requires tokens to complete
         {
           return false;
         }
@@ -381,24 +370,17 @@ struct Lang
 
   bool accepted()
   {
-    auto n = queue.head;
-    while( n != queue.end )
+    for( auto it = queue.begin(); it != queue.end(); ++it )
     {
-      if( n->value.empty() && n->value.tokens.empty() )
+      if( it->empty() && it->tokens.empty() )
       {
         return true;
       }
-      n = n->next;
     }
 
-
-    entry_t current;
-
-    while( !queue.empty() )
+    for( auto it = queue.begin(); it != queue.end(); ++it )
     {
-      current = queue.pop();
-
-      if( accept(current) )
+      if( accept(*it) )
       {
         return true;
       }
