@@ -212,8 +212,6 @@ struct Lang
           // entry.push(index);
           out.push(std::move(entry));
         }
-
-        return;
         break;
 
       case 1: // OR - ADD SECOND SIDE TO CURRENT QUEUE, CONTINUE SEARCH WITH THIS ONE
@@ -221,7 +219,6 @@ struct Lang
         entry.push(left(index));
         // search(entry, out);
         queue.push(std::move(entry));
-
         break;
 
       case 2: // AND - ADD RIGHT, SEARCH LEFT, if nullable add right as
