@@ -59,17 +59,12 @@ struct Lang
       return val;
     }
 
-    entry_t(int i)
-    : stk()
-    , tokens()
+    entry_t(int i, const nil_t<int>& nil) // only for constructing first time in queue, rest get nil from it
+    : stk(nil)
+    , tokens(nil)
     {
       stk.push(i);
     }
-
-    entry_t()
-    : stk()
-    , tokens()
-    {}
 
     entry_t(stack<int>&& stk, stack<int>&& tokens)
     : stk(std::move(stk))
@@ -106,9 +101,10 @@ struct Lang
   };
 
   int lang[size];
-  bool nullable[size];
+  nil_t<int> nil;
+  nil_t<entry_t> entry_nil;
   stack<entry_t> queue;
-
+  bool nullable[size];
 
   static int left(int i)
   {
@@ -123,59 +119,57 @@ struct Lang
 
   void init()
   {
-    queue.push(0);
-    print(std::cout);
+    queue.push(entry_t(0, nil));
 
-    auto prev = stack<std::pair<int, bool>>();
-    for( auto i = 0; i < size; ++i )
+    auto prev = stack<std::pair<int, bool>>(make_nil<std::pair<int,bool>>());
+    set_nullable(0, prev);
+
+    // std::cout <<"nullability: \n";
+    for( auto it = prev.begin(); it != prev.end(); ++it )
     {
-      nullable[i] = set_nullable(i, prev);
+      if( lang[it->first] != 4 )
+      {
+      nullable[it->first] = it->second;
+      }
     }
 
     for( auto it = prev.begin(); it != prev.end(); ++it )
     {
-      if( lang[it->first] == 4 )
+      if( lang[it->first] == 4 ) // nonterm
       {
-        nullable[it->first] = nullable[left(it->first)];
+        nullable[it->first] = nullable[lang[left(it->first)]];
       }
+      // std::cout << "(" << it->first << "," << nullable[it->first] << ")";
     }
+    // std::cout << std::endl;
   }
 
 
   void reset()
   {
     queue.clear();
-    queue.push(0);
+    queue.push(entry_t(0, nil));
   }
 
 
   void add_to_tails(const int t)
   {
-    using s_ptr = stack<int>::stack_node<int>*;
-
-    auto hits = std::vector<s_ptr>();
-    std::vector<s_ptr>::iterator it;
-    stack<int>::s_iter<int> i;
+    auto hits = std::vector<s_node<int>*>();
+    std::vector<s_node<int>*>::iterator it;
 
     for( auto n = queue.begin(); n != queue.end(); ++n )
     {
       if( n->tokens.empty() )
       {
-        auto b = n->tokens.push(t);
-        hits.push_back(b);
+        n->tokens.push(t);
       } else
       {
-        i = n->tokens.begin();
-        while( i.next() != n->tokens.nil.get() )
-        {
-          ++i;
-        }
+        auto i = n->tokens.last();
 
-        it = std::find(hits.begin(), hits.end(), i.node());
+        it = std::find(hits.begin(), hits.end(), i.get());
         if( it == hits.end() )
         {
-          auto b = n->tokens.push_back(t);
-          hits.push_back(b);
+          hits.push_back( n->tokens.push_back(t) );
         }
       }
     }
@@ -200,11 +194,11 @@ struct Lang
     }
 
     add_to_tails(t);
-    std::cout << "\nqueue: ";
-    print(std::cout);
+    // std::cout << "\nqueue: ";
+    // print(std::cout);
 
-    stack<entry_t> out;
-    entry_t current;
+    stack<entry_t> out(entry_nil);
+    entry_t current(0, nil);
 
     while( !queue.empty() )
     {
@@ -213,9 +207,9 @@ struct Lang
     }
 
     queue = std::move(out);
-    std::cout << "\napplied " << t << ", remaining: "<< std::endl;
-    print(std::cout);
-    std::cout << "end remaining\n" << std::endl;
+    // std::cout << "\napplied " << t << ", remaining: "<< std::endl;
+    // print(std::cout);
+    // std::cout << "end remaining\n" << std::endl;
   }
 
 
@@ -223,13 +217,15 @@ struct Lang
   // either dead-end, nonterminal reached
   void search(entry_t& entry, stack<entry_t>& out)
   {
-    // std::cout << "\nsearching " << entry;
+    // std::cout << "searching: " << entry << std::endl;
+
     if( entry.empty() )
     {
       if( entry.tokens.empty() ) // add to out, could be exit,
                                  // else cleaned up w/ next token
       {
-        out.push(std::move(entry));
+        // std::cout << "added empty \n";
+        out.push( std::move(entry) );
       }
 
       return;
@@ -239,43 +235,54 @@ struct Lang
 
     switch( lang[index] )
     {
-      case 0: // EMPTY - add self to queue, move to next item
-        out.push( entry.fork() );
-
-        if( !entry.tokens.empty() )
+      case 0: // EMPTY - if tokens empty, wait else consume empty and go
+        if( entry.tokens.empty() )
         {
-          search(entry, out);         // consume empty str
+          out.push( entry.fork() );
+        } else
+        {
+          queue.push( std::move(entry) );
+
+          // search(entry, out);         // consume empty str
         }
         break;
 
       case 1: // OR - add second side to current queue, continue search on left side
-        queue.push(std::move(entry.fork_to( right(index) )));
+        queue.push( std::move(entry.fork_to( right(index) )) );
+        // std::cout << "fork to " << right(index) << std::endl;
 
         entry.push( left(index) );
-        search(entry, out);
+        queue.push( std::move(entry) );
+
+        // search(entry, out);
         break;
 
       case 2: // AND -add right and search left, if nullable add right as
               // second search w/o left
         if( nullable[left(index)] )
         {
-          queue.push(std::move(entry.fork_to( right(index) )));
+          queue.push( std::move(entry.fork_to( right(index) )) );
+          // std::cout << "fork to " << right(index) << std::endl;
         }
 
         entry.push( right(index) );
         entry.push( left(index) );
-        search(entry, out);
+        queue.push( std::move(entry) );
+
+        // search(entry, out);
         break;
 
       case 3: // STAR - search contained node, then STAR again
         entry.push( index );
         entry.push( left(index) );
-        search(entry, out);
+        queue.push( std::move(entry) );
+
+        // search(entry, out);
         break;
 
       case 4: // NONTERM - add pointed-to index, add to output for next round
         entry.push( lang[left(index)] );
-        out.push(std::move(entry));
+        out.push( std::move(entry) );
         break;
 
       default: // TOKENS - check entry's token, if front
@@ -284,11 +291,12 @@ struct Lang
         {
           entry.push( index );
           out.push( std::move(entry) );
-        } else
-        if( entry.tokens.front() == lang[index] )
+          // std::cout << "added " << out.front();
+        } else if( entry.tokens.front() == lang[index] )
         {
           entry.tokens.pop();
-          search(entry, out);
+          queue.push( std::move(entry) );
+          // search(entry, out);
         }
         break;
     }
@@ -305,6 +313,8 @@ struct Lang
       }
     }
 
+    bool l, r;
+
     switch( lang[i] )
     {
       case 0: // EMPTY
@@ -312,13 +322,15 @@ struct Lang
         break;
 
       case 1: // OR
-        prev.push(std::make_pair(i,
-                    set_nullable(left(i), prev) || set_nullable(right(i), prev)));
+        l = set_nullable(left(i), prev);
+        r = set_nullable(right(i), prev);
+        prev.push(std::make_pair(i, l || r));
         break;
 
       case 2: // AND
-        prev.push(std::make_pair(i,
-                    set_nullable(left(i), prev) && set_nullable(right(i), prev)));
+        l = set_nullable(left(i), prev);
+        r = set_nullable(right(i), prev);
+        prev.push(std::make_pair(i, l && r));
         break;
 
       case 3: // STAR
@@ -340,8 +352,6 @@ struct Lang
 
   bool accept(entry_t& e)
   {
-    std::cout << e;
-
     if( e.tokens.empty() )
     {
       for( auto it = e.stk.begin(); it != e.stk.end(); ++it )
@@ -353,18 +363,8 @@ struct Lang
       }
 
       return true;
-    } else
-    {
-      while( !e.stk.empty() &&  nullable[e.stk.front()] )  // remove nullable entries and search
-      {
-        e.pop();
-      }
-
-      stack<entry_t> out;
-      search(e, out);
-
-      return false;
     }
+      return false;
   }
 
 
@@ -389,3 +389,15 @@ struct Lang
     return false;
   }
 };
+
+
+template<size_t N, typename... Us>
+Lang<N> make_lang(Us&&... us)
+{
+  auto nil = make_nil<int>(0);
+  auto entry_nil = make_nil<typename Lang<N>::entry_t>(0, nil);
+  return Lang<N>{{std::forward<Us>(us)...},
+                  nil,
+                  entry_nil,
+                  entry_nil};
+}

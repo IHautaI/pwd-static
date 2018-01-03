@@ -1,4 +1,5 @@
 #include <memory>
+#include <cstddef>
 #include <iterator>
 
 template<typename T>
@@ -10,23 +11,39 @@ struct stack
     U value;
     std::shared_ptr<stack_node<U>> next;
 
-    stack_node(U&& v, std::shared_ptr<stack_node<U>> n)
+    stack_node(const U& v)
+    : value(v)
+    , next(nullptr)
+    {}
+
+    stack_node(U&& v)
+    : value(std::move(v))
+    , next(nullptr)
+    {}
+
+    stack_node(U&& v, const std::shared_ptr<stack_node<U>>& n)
     : value(std::move(v))
     , next(n)
     {}
 
-    stack_node(const U& v, std::shared_ptr<stack_node<U>> n)
+    stack_node(const U& v, const std::shared_ptr<stack_node<U>>& n)
     : value(v)
     , next(n)
     {}
 
-    ~stack_node(){}
+    ~stack_node()
+    {
+      if( next.get() == this )
+      {
+        auto t = std::shared_ptr<stack_node<U>>();
+        next.swap(t);
+      }
+    }
   };
 
 
   std::shared_ptr<stack_node<T>> head;
   std::shared_ptr<stack_node<T>> nil;
-  stack_node<T>* last;
 
 
   bool empty()
@@ -37,14 +54,14 @@ struct stack
 
   T pop()
   {
-    auto t = std::move(head->value);
-    if( last == head.get() )
+    if( head != nil )
     {
-      last = head->next.get();
+      auto t = std::move(head->value);
+      head = head->next;
+      return t;
     }
 
-    head = head->next;
-    return t;
+    return std::move(head->value);
   }
 
 
@@ -54,25 +71,30 @@ struct stack
   }
 
 
-  stack_node<T>* push(T&& t)
+  std::shared_ptr<stack_node<T>> last()
   {
-    head = std::make_shared<stack_node<T>>(std::move(t), head);
-    if( last == nil.get() )
+    auto n = head;
+    while( n->next != nil )
     {
-      last = head.get();
+      n = n->next;
     }
-    return head.get();
+    return n;
   }
 
 
-  stack_node<T>* push(const T& t)
+  void push(T&& t)
   {
-    head = std::make_shared<stack_node<T>>(t, head);
-    if( last == nil.get() )
-    {
-      last = head.get();
-    }
-    return head.get();
+    auto tmp = head;
+    head = std::make_shared<stack_node<T>>(std::forward<T>(t));
+    head->next = tmp;
+  }
+
+
+  void push(const T& t)
+  {
+    auto tmp = head;
+    head = std::make_shared<stack_node<T>>(t);
+    head->next = tmp;
   }
 
 
@@ -81,13 +103,19 @@ struct stack
     if( head == nil )
     {
       push(std::move(t));
-      last = head.get();
+      return nullptr;
     } else // splice
     {
-      last->next = std::make_shared<stack_node<T>>(std::move(t), nil);
-      last = last->next.get();
+      auto n = head;
+      while( n->next != nil )
+      {
+        n = n->next;
+      }
+      auto tmp = n->next;
+      n->next = std::make_shared<stack_node<T>>(std::move(t));
+      n->next->next = tmp;
+      return n->next.get();
     }
-    return last;
   }
 
 
@@ -96,57 +124,57 @@ struct stack
     if( head == nil )
     {
       push(t);
-      last = head.get();
+      return nullptr;
     } else // splice
     {
-      last->next = std::make_shared<stack_node<T>>(t, nil);
-      last = last->next.get();
+      auto n = head;
+      while( n->next != nil )
+      {
+        n = n->next;
+      }
+      auto tmp = n->next;
+      n->next = std::make_shared<stack_node<T>>(t);
+      n->next->next = tmp;
+      return n->next.get();
     }
-    return last;
   }
 
 
   void clear()
   {
     head = nil;
-    last = nil.get();
   }
 
 
   stack<T> fork()
   {
-    return stack<T>(head, nil, last);
+    return stack<T>(head, nil);
   }
 
 
-  stack()
-  : head(new stack_node<T>(T(), nullptr))
-  , nil(head)
-  , last(head.get())
+  stack(const std::shared_ptr<stack_node<T>>& nil)
+  : head(nil)
+  , nil(nil)
   {}
 
 
-  stack(std::shared_ptr<stack_node<T>>& head,
-        std::shared_ptr<stack_node<T>>& nil,
-        stack_node<T>* last)
+  stack(const std::shared_ptr<stack_node<T>>& head,
+        const std::shared_ptr<stack_node<T>>& nil)
   : head(head)
   , nil(nil)
-  , last(last)
   {}
 
 
   stack(stack&& o)
-  : head(o.head)
-  , nil(o.nil)
-  , last(o.last)
+  : head(std::move(o.head))
+  , nil(std::move(o.nil))
   {}
 
 
   stack& operator=(stack&& o)
   {
-    head = o.head;
-    nil = o.nil;
-    last = o.last;
+    head = std::move(o.head);
+    nil = std::move(o.nil);
     return *this;
   }
 
@@ -156,7 +184,7 @@ struct stack
   struct s_iter
   {
     using value_type = U;
-    using difference_type = ptrdiff_t;
+    using difference_type = std::ptrdiff_t;
     using pointer = U*;
     using reference = U&;
     using iterator_category = std::forward_iterator_tag;
@@ -236,3 +264,15 @@ struct stack
     return s_iter<T>(nil);
   }
 };
+
+template<typename T>
+using s_node = typename stack<T>:: template stack_node<T>;
+
+template<typename T>
+using nil_t = std::shared_ptr<s_node<T>>;
+
+template<typename T, typename... Us>
+nil_t<T> make_nil(Us&&... us)
+{
+  return std::make_shared<s_node<T>>(T(us...), std::shared_ptr<s_node<T>>());
+}

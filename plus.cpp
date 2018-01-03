@@ -23,11 +23,11 @@ int main(int argc, char* argv[])
   // ->
   // 1 | 2 5 | 4 2 0 0 | 0 0 6 4 0 0 0 0 | 0 0 0 0 0 0 0
 
-  Lang<22> l{                                1,
+  auto l = make_lang<22>(                   1,
                              2,                       5,
                      4,             2,            0,      0,
                  0,      0,      6,      4,     0,  0,  0,  0,
-               0,  0,  0,  0,  0,  0,  0};
+               0,  0,  0,  0,  0,  0,  0);
 
   l.init();
 
@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
     {
       l.apply(map(c));
     }
-    l.print(std::cout);
+    // l.print(std::cout);
     std::cout << "Accepted? " << l.accepted() << "\n" << std::endl;
     l.reset();
   }

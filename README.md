@@ -29,3 +29,10 @@ Search by node type:
 
 This leads to something more like standard parsing with a stack, but retains
 the nice properties of PwD.
+
+Current work:
+swap out the current stacks for a hierarchal approach - 
+will use std::unique_ptr internally, and shared_ptr to the next stack or nil.
+This will potentially remove a lot of shared_ptrs and changes in shared_ptr state.
+Two new stacks will be made when calling fork/fork_to, each pointing to the original
+via shared_ptr.
