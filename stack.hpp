@@ -22,23 +22,32 @@ struct stack
     ~stack_node(){}
   };
 
+
   std::shared_ptr<stack_node<T>> head;
-  stack_node<T>* end;
+  std::shared_ptr<stack_node<T>> end;
+  stack_node<T>* last;
+
 
   bool empty()
   {
-    return head == nullptr;
+    return head == end;
   }
+
 
   T pop()
   {
     auto t = std::move(head->value);
+    if( last == head.get() )
+    {
+      last = head->next.get();
+    }
+
     head = head->next;
     return t;
   }
 
-  T&
-   front()
+
+  T& front()
   {
     return head->value;
   }
@@ -46,83 +55,85 @@ struct stack
 
   void push(T&& t)
   {
-    auto n = std::make_shared<stack_node<T>>(std::move(t), head);
-    head = n;
-    if( head->next == nullptr )
-    {
-      end = head.get();
-    }
-  }
-
-
-  void push_back(T&& t)
-  {
-      if( head == nullptr )
-      {
-        push(std::move(t));
-      } else
-      {
-        end->next = std::make_shared<stack_node<T>>(std::move(t), nullptr);
-        end = end->next.get();
-      }
+    head = std::make_shared<stack_node<T>>(std::move(t), head);
   }
 
 
   void push(const T& t)
   {
-    auto n = std::make_shared<stack_node<T>>(t, head);
-    head = n;
-    if( head->next == nullptr )
-    {
-      end = head.get();
-    }
+    head = std::make_shared<stack_node<T>>(t, head);
+  }
+
+
+  void push_back(T&& t)
+  {
+      if( head == end )
+      {
+        push(std::move(t));
+        last = head.get();
+      } else // splice
+      {
+        last->next = std::make_shared<stack_node<T>>(std::move(t), end);
+        last = last->next.get();
+      }
   }
 
 
   void push_back(const T& t)
   {
-      if( head == nullptr )
+      if( head == end )
       {
         push(t);
-      } else
+        last = head.get();
+      } else // splice
       {
-        end->next = std::make_shared<stack_node<T>>(t, nullptr);
-        end = end->next.get();
+        last->next = std::make_shared<stack_node<T>>(t, end);
+        last = last->next.get();
       }
   }
 
 
-  auto clear()
+  void clear()
   {
-    head = nullptr;
-    end = head.get();
+    head = end;
+    last = end.get();
   }
 
 
   stack<T> fork()
   {
-    return stack<T>(head, end);
+    return stack<T>(head, end, last);
   }
 
+
   stack()
-  : head(nullptr)
-  , end(nullptr)
+  : head(new stack_node<T>(T(), nullptr))
+  , end(head)
+  , last(end.get())
   {}
 
-  stack(std::shared_ptr<stack_node<T>>& head, stack_node<T>* end)
+
+  stack(std::shared_ptr<stack_node<T>>& head,
+        std::shared_ptr<stack_node<T>>& end,
+        stack_node<T>* last)
   : head(head)
   , end(end)
+  , last(end.get())
   {}
+
 
   stack(stack&& o)
   : head(o.head)
   , end(o.end)
+  , last(o.last)
   {}
+
 
   stack& operator=(stack&& o)
   {
     head = o.head;
     end = o.end;
+    last = o.last;
     return *this;
   }
 

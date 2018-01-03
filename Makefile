@@ -1,8 +1,12 @@
-CXX=clang++ -std=c++14
+CXX=g++ -std=c++14 -g -pg -O3
+EXE=parens plus
 
-all: clean main
+all: clean parens plus
 
-clean: 
-	rm main
+clean:
+	rm -f $(EXE)
 
-main:
+parens:
+
+
+plus:
