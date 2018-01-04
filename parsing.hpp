@@ -142,10 +142,15 @@ struct Lang
     for( auto& x : queue )
     {
       x.stack.clear_unmarked();
-      x.stack.unmark();
     }
 
     stack_nil->clear_unmarked();
+
+    for( auto& x : queue )
+    {
+      x.stack.unmark();
+    }
+
     stack_nil->unmark();
   }
 

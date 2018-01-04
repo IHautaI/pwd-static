@@ -33,7 +33,17 @@ struct hydras
   , marked(false)
   {}
 
-  ~hydras(){}
+  ~hydras()
+  {
+    // if( size > 0 )
+    // {
+    //   for( auto i = 0; i < size; ++i )
+    //   {
+    //     children[i].reset();
+    //   }
+    // }
+    // children.reset();
+  }
 
 
   // marks node and all below
@@ -41,7 +51,7 @@ struct hydras
   {
     if( !marked )
     {
-      marked |= true;
+      marked = true;
       if( next != nullptr )
       {
         next->mark();
@@ -54,7 +64,7 @@ struct hydras
   {
     if( marked )
     {
-      this->marked &= false;
+      this->marked = false;
       if( next != nullptr )
       {
         next->unmark();
@@ -62,7 +72,7 @@ struct hydras
     }
   }
 
-  // only clears immediate children
+  // only clears immediate children and internal unmarked nodes
   void clear_unmarked()
   {
     if( !empty() )
@@ -74,10 +84,10 @@ struct hydras
           if( !children[i]->marked )
           {
             children[i].reset(nullptr);
-          } //else
-          // {
-          //   children[i]->clear_unmarked();
-          // }
+          } // else   // clear internal unmarked nodes?  might not need
+          //  {
+          //    children[i]->clear_unmarked();
+          //  }
         }
       }
     }
@@ -136,8 +146,10 @@ struct hydras
   }
 
 
-  hydra* push(std::unique_ptr<hydra>& n)
+  hydra* push(std::unique_ptr<hydra>&& n)
   {
+    n->next = this;
+
     ++filled;
     if( filled >= size / 2 )
     {
@@ -149,7 +161,6 @@ struct hydras
         if( children[i] == nullptr )
         {
           children[i] = std::move(n);
-          children[i]->next = this;
           return children[i].get();
         }
       }
@@ -160,7 +171,6 @@ struct hydras
         if( children[i] == nullptr )
         {
           children[i] = std::move(n);
-          children[i]->next = this;
           return children[i].get();
         }
       }
