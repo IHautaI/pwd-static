@@ -31,8 +31,9 @@ This leads to something more like standard parsing with a stack, but retains
 the nice properties of PwD.
 
 Current work:
-figure out how to make it better
-then do it
+hydra, the many-headed stack
+Key thing here is the body has the brain,
+the heads can be lopped off from the end inward
 
-previous idea was bad, will not do
-next idea - better?
+This time using unique_ptr from nil outward, and back-pointers
+for the next item in the stack
