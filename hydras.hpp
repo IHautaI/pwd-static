@@ -146,7 +146,7 @@ struct hydras
   }
 
 
-  hydra* push(std::unique_ptr<hydra>&& n)
+  hydra* push(std::unique_ptr<hydra>& n)
   {
     n->next = this;
 
