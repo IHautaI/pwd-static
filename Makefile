@@ -1,7 +1,7 @@
 CXX=g++ -std=c++14 -g -pg -O3
-EXE=parens plus main
+EXE=parens plus
 
-all: clean parens plus main
+all: clean parens plus
 
 clean:
 	rm -f $(EXE)
@@ -10,6 +10,3 @@ parens:
 
 
 plus:
-
-
-main:
