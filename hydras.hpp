@@ -13,6 +13,7 @@ struct hydras
   int size;
   int filled;
   T value;
+  bool marked;
 
   hydras()
   : children()
@@ -20,6 +21,7 @@ struct hydras
   , size(0)
   , filled(0)
   , value()
+  , marked(false)
   {}
 
   hydras(const T& t)
@@ -28,9 +30,58 @@ struct hydras
   , size(0)
   , filled(0)
   , value(t)
+  , marked(false)
   {}
 
   ~hydras(){}
+
+
+  // marks node and all below
+  void mark()
+  {
+    if( !marked )
+    {
+      marked |= true;
+      if( next != nullptr )
+      {
+        next->mark();
+      }
+    }
+  }
+
+  // unmarks node and any below
+  void unmark()
+  {
+    if( marked )
+    {
+      this->marked &= false;
+      if( next != nullptr )
+      {
+        next->unmark();
+      }
+    }
+  }
+
+  // only clears immediate children
+  void clear_unmarked()
+  {
+    if( !empty() )
+    {
+      for( auto i = 0; i < size; ++i )
+      {
+        if( children[i] != nullptr )
+        {
+          if( !children[i]->marked )
+          {
+            children[i].reset(nullptr);
+          } //else
+          // {
+          //   children[i]->clear_unmarked();
+          // }
+        }
+      }
+    }
+  }
 
   void bigger()
   {
@@ -82,35 +133,6 @@ struct hydras
       auto ptr = std::make_unique<hydra>(u);
       return push(ptr);
     }
-
-    // ++filled;
-    // if( filled >= size / 2 )
-    // {
-    //   bigger();
-    //
-    //   auto i = size > 1 ? size / 2 : 0;
-    //   for( ; i < size; ++i )
-    //   {
-    //     if( children[i] == nullptr )
-    //     {
-    //       children[i] = std::make_unique<hydra>(u);
-    //       children[i]->next = this;
-    //       return children[i].get();
-    //     }
-    //   }
-    // } else
-    // {
-    //   for(auto i = 0; i < size; ++i )
-    //   {
-    //     if( children[i] == nullptr )
-    //     {
-    //       children[i] = std::make_unique<hydra>(u);
-    //       children[i]->next = this;
-    //       return children[i].get();
-    //     }
-    //   }
-    // }
-    // return nullptr;
   }
 
 
@@ -214,7 +236,7 @@ struct hydras
     {
       return;
     }
-    
+
     for( auto i = 0; i < size; ++i )
     {
       if( children[i] != nullptr )
@@ -227,5 +249,23 @@ struct hydras
         children[i]->push(tmp);
       }
     }
+  }
+
+  auto full_size()
+  {
+    if( size == 0 || filled == 0 )
+    {
+      return 0;
+    }
+
+    auto s = filled;
+    for( auto i = 0; i < size; ++i )
+    {
+      if( children[i] != nullptr )
+      {
+        s += children[i]->full_size();
+      }
+    }
+    return s;
   }
 };

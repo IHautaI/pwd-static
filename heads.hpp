@@ -1,4 +1,3 @@
-#include "iter.hpp"
 #include "hydras.hpp"
 
 template<typename T>
@@ -26,6 +25,21 @@ struct heads
   auto value()
   {
     return children->value;
+  }
+
+  auto mark()
+  {
+    children->mark();
+  }
+
+  auto unmark()
+  {
+    children->unmark();
+  }
+
+  auto clear_unmarked()
+  {
+    children->clear_unmarked();
   }
 
   heads(hydras<T>* n)

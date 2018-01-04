@@ -132,13 +132,26 @@ struct Lang
   }
 
 
-  void apply(const int t)
+  void clean()
   {
-    if( queue.empty() )
+    for( auto& x : queue )
     {
-      return;
+      x.stack.mark();
     }
 
+    for( auto& x : queue )
+    {
+      x.stack.clear_unmarked();
+      x.stack.unmark();
+    }
+
+    stack_nil->clear_unmarked();
+    stack_nil->unmark();
+  }
+
+
+  void add_token(const int t)
+  {
     if( !token_nil->empty() )
     {
       token_nil->splice(t);
@@ -151,9 +164,20 @@ struct Lang
         x.tokens.push(t);
       }
     }
+  }
 
-    std::cout << "\nqueue: ";
-    print(std::cout);
+
+  void apply(const int t)
+  {
+    if( queue.empty() )
+    {
+      return;
+    }
+
+    add_token(t);
+
+    // std::cout << "\nqueue: ";
+    // print(std::cout);
 
     auto out = queue_t();
 
@@ -164,9 +188,13 @@ struct Lang
     }
 
     queue = std::move(out);
-    std::cout << "\napplied " << t << ", remaining: "<< std::endl;
-    print(std::cout);
-    std::cout << "end remaining\n" << std::endl;
+    // std::cout << "\napplied " << t << ", remaining: "<< std::endl;
+    // print(std::cout);
+    // std::cout << "end remaining\n" << std::endl;
+
+    clean();
+
+    std::cout << "size: " << stack_nil->full_size() << std::endl;
   }
 
 
@@ -174,7 +202,7 @@ struct Lang
   // either dead-end, nonterminal reached
   void search(entry_t& entry, queue_t& out)
   {
-    std::cout << "searching: " << entry << std::endl;
+    // std::cout << "searching: " << entry << std::endl;
 
     if( entry.stack.empty() )
     {
