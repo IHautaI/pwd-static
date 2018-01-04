@@ -138,6 +138,21 @@ struct heads
       }
     }
   }
+
+
+  std::unique_ptr<T>& child(T* that)
+  {
+    for( auto i = 0; i < size; ++i )
+    {
+      if( children[i] == that )
+      {
+        return children[i];
+      }
+    }
+
+    return nullptr;
+  }
+
 };
 
 
@@ -148,11 +163,28 @@ struct hydra
   hydra<T>* next;
   T value;
 
-  friend hydra<T>* push(hydra<T>* that, const T& w)
+  std::unique_ptr<hydra<T>>& child(hydra<T>* that)
   {
-    auto ptr = that->children.push(w);
+    return heads.child(that);
+  }
+
+  friend hydra<T>* push(hydra<T>* that, const T& t)
+  {
+    auto ptr = that->children.push(t);
     ptr->next = that;
     return ptr;
+  }
+
+  friend hydra<T>* push_back(hydra<T>* that, const T& t)
+  {
+    auto* n = that;
+    while( n->next->next != nullptr )
+    {
+      n = n->next;
+    }
+
+    auto mid = n->next.push(t);
+    mid->push(std::move(n->next.child(n)));
   }
 
   template<typename... Us>

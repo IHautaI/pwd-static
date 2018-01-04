@@ -1,8 +1,7 @@
 #include <cstring>
 #include <iostream>
-#include <vector>
-#include <algorithm>
-#include "stack.hpp"
+
+#include "hydra.hpp"
 
 /*
 *  Types:
@@ -22,40 +21,42 @@ struct Lang
 {
   struct entry_t
   {
-    stack<int> stk;
-    stack<int> tokens;
+    hydra<int>& nil;
+    hydra<int>* stk;
+    hydra<int>* tokens;
 
     bool empty()
     {
-      return stk.empty();
+      return stk->next == nullptr;
     }
 
     template<typename T>
     void push(const T& t)
     {
-      stk.push(t);
+      push(stk, t);
     }
 
     template<typename T>
     void push_back(const T& t)
     {
-      stk.push_back(t);
+      push_back(stk, t);
     }
 
     int pop()
     {
-      return stk.pop();
+      stk = pop(stk);
+      return stk->value;
     }
 
     entry_t fork()
     {
-      return entry_t(stk.fork(), tokens.fork());
+      return entry_t(nil, stk, tokens);
     }
 
     entry_t fork_to(int i)
     {
-      entry_t val(std::move(stk.fork()), std::move(tokens.fork()));
-      val.stk.push(i);
+      entry_t val(nil, stk, tokens);
+      val.push(i);
       return val;
     }
 
