@@ -15,7 +15,7 @@ int main()
             << z->value
             << std::endl;
 
-  std::cout << pop(y)->value // don't do X, it doesn't have a value (root)
+  std::cout << pop(y) // don't do X, it doesn't have a value (root)
             << " "
-            << pop(z)->value << std::endl;
+            << pop(z) << std::endl;
 }

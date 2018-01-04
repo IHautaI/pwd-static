@@ -1,5 +1,7 @@
 #include <cstring>
 #include <iostream>
+#include <vector>
+#include <algorithm>
 
 #include "hydra.hpp"
 
@@ -21,19 +23,19 @@ struct Lang
 {
   struct entry_t
   {
-    hydra<int>& nil;
+    hydra<int>* nil;
     hydra<int>* stk;
     hydra<int>* tokens;
 
     bool empty()
     {
-      return stk->next == nullptr;
+      return stk == nil;
     }
 
     template<typename T>
     void push(const T& t)
     {
-      push(stk, t);
+      stk = push(stk, t);
     }
 
     template<typename T>
@@ -42,10 +44,41 @@ struct Lang
       push_back(stk, t);
     }
 
-    int pop()
+    template<typename T>
+    void push_token(const T& t)
     {
-      stk = pop(stk);
-      return stk->value;
+      tokens = push(tokens, t);
+    }
+
+
+    int next()
+    {
+      return pop(stk);
+    }
+
+    int pop_token()
+    {
+      return pop(tokens);
+    }
+
+    iter<hydra<int>, int> stack_begin()
+    {
+      return iter<hydra<int>, int>(stk);
+    }
+
+    iter<hydra<int>, int> stack_end()
+    {
+      return iter<hydra<int>, int>(nil);
+    }
+
+    iter<hydra<int>, int> token_begin()
+    {
+      return iter<hydra<int>, int>(tokens);
+    }
+
+    iter<hydra<int>, int> token_end()
+    {
+      return iter<hydra<int>, int>(nil);
     }
 
     entry_t fork()
@@ -56,24 +89,25 @@ struct Lang
     entry_t fork_to(int i)
     {
       entry_t val(nil, stk, tokens);
-      val.push(i);
+      push(val.stk, i);
       return val;
     }
 
-    entry_t(int i, const nil_t<int>& nil) // only for constructing first time in queue, rest get nil from it
-    : stk(nil)
+    entry_t(hydra<int>* nil)
+    : nil(nil)
+    , stk(nil)
     , tokens(nil)
-    {
-      stk.push(i);
-    }
+    {}
 
-    entry_t(stack<int>&& stk, stack<int>&& tokens)
-    : stk(std::move(stk))
-    , tokens(std::move(tokens))
+    entry_t(hydra<int>* nil, hydra<int>* stk, hydra<int>* tokens)
+    : nil(nil)
+    , stk(stk)
+    , tokens(tokens)
     {}
 
     entry_t(entry_t&& o)
-    : stk(std::move(o.stk))
+    : nil(std::move(o.nil))
+    , stk(std::move(o.stk))
     , tokens(std::move(o.tokens))
     {}
 
@@ -86,13 +120,13 @@ struct Lang
 
     friend std::ostream& operator<<(std::ostream& out, entry_t& e)
     {
-      for( auto it = e.stk.begin(); it != e.stk.end(); ++it )
+      for( auto it = e.stk_begin(); it != e.stk_end(); ++it )
       {
         std::cout << *it << " -> ";
       }
       std::cout << " | ";
 
-      for( auto it = e.tokens.begin(); it != e.tokens.end(); ++it )
+      for( auto it = e.token_begin(); it != e.tokens_end(); ++it )
       {
         std::cout << *it << " -> ";
       }
@@ -101,11 +135,15 @@ struct Lang
     }
   };
 
+
+
   int lang[size];
-  nil_t<int> nil;
-  nil_t<entry_t> entry_nil;
-  stack<entry_t> queue;
+  std::unique_ptr<hydra<int>> nil;
+  std::unique_ptr<hydra<entry_t>> entry_nil;
+  hydra<entry_t> queue;
   bool nullable[size];
+
+
 
   static int left(int i)
   {
@@ -120,25 +158,27 @@ struct Lang
 
   void init()
   {
-    queue.push(entry_t(0, nil));
+    auto start = entry_t(nil.get());
+    start.push(0);
+    push(queue, std::move(start));
 
-    auto prev = stack<std::pair<int, bool>>(make_nil<std::pair<int,bool>>());
+    auto prev = std::vector<std::pair<int, bool>>();
     set_nullable(0, prev);
 
     // std::cout <<"nullability: \n";
-    for( auto it = prev.begin(); it != prev.end(); ++it )
+    for( auto& x : prev )
     {
-      if( lang[it->first] != 4 )
+      if( lang[x.first] != 4 )
       {
-      nullable[it->first] = it->second;
+      nullable[x.first] = x.second;
       }
     }
 
-    for( auto it = prev.begin(); it != prev.end(); ++it )
+    for( auto& x : prev )
     {
-      if( lang[it->first] == 4 ) // nonterm
+      if( lang[x.first] == 4 ) // nonterm
       {
-        nullable[it->first] = nullable[lang[left(it->first)]];
+        nullable[x.first] = nullable[lang[left(x.first)]];
       }
       // std::cout << "(" << it->first << "," << nullable[it->first] << ")";
     }
@@ -149,28 +189,28 @@ struct Lang
   void reset()
   {
     queue.clear();
-    queue.push(entry_t(0, nil));
+    auto start = entry_t(nil.get());
+    start.push(0);
+    push(queue, std::move(start));
   }
 
 
   void add_to_tails(const int t)
   {
-    auto hits = std::vector<s_node<int>*>();
-    std::vector<s_node<int>*>::iterator it;
+    auto hits = std::vector<hydra<int>*>();
+    std::vector<hydra<int>*>::iterator it;
 
     for( auto n = queue.begin(); n != queue.end(); ++n )
     {
       if( n->tokens.empty() )
       {
-        n->tokens.push(t);
+        n->push_token(t);
       } else
       {
-        auto i = n->tokens.last();
-
-        it = std::find(hits.begin(), hits.end(), i.get());
+        it = std::find(hits.begin(), hits.end(), n->tokens.last());
         if( it == hits.end() )
         {
-          hits.push_back( n->tokens.push_back(t) );
+          hits.push_back( push_back(n->tokens, t) );
         }
       }
     }
@@ -198,13 +238,13 @@ struct Lang
     // std::cout << "\nqueue: ";
     // print(std::cout);
 
-    stack<entry_t> out(entry_nil);
-    entry_t current(0, nil);
+    auto out = hydra<entry_t>(entry_nil);
+    auto current = entry_t(0, nil);
 
     while( !queue.empty() )
     {
       current = queue.pop();
-      search(current, out);
+      search(*current, out);
     }
 
     queue = std::move(out);
@@ -216,7 +256,7 @@ struct Lang
 
   // searches from last node in entry until
   // either dead-end, nonterminal reached
-  void search(entry_t& entry, stack<entry_t>& out)
+  void search(entry_t& entry, hydra<entry_t>& out)
   {
     // std::cout << "searching: " << entry << std::endl;
 
@@ -226,7 +266,7 @@ struct Lang
                                  // else cleaned up w/ next token
       {
         // std::cout << "added empty \n";
-        out.push( std::move(entry) );
+        push(out, std::move(entry));
       }
 
       return;
@@ -242,18 +282,19 @@ struct Lang
           out.push( entry.fork() );
         } else
         {
-          queue.push( std::move(entry) );
+          push(queue, std::move(entry));
 
           // search(entry, out);         // consume empty str
         }
         break;
 
       case 1: // OR - add second side to current queue, continue search on left side
-        queue.push( std::move(entry.fork_to( right(index) )) );
+        push(queue, std::move(entry.fork_to( right(index) )));
         // std::cout << "fork to " << right(index) << std::endl;
 
         entry.push( left(index) );
-        queue.push( std::move(entry) );
+
+        push(queue, std::move(entry) );
 
         // search(entry, out);
         break;
@@ -262,13 +303,13 @@ struct Lang
               // second search w/o left
         if( nullable[left(index)] )
         {
-          queue.push( std::move(entry.fork_to( right(index) )) );
+          push(queue, std::move(entry.fork_to( right(index) )) );
           // std::cout << "fork to " << right(index) << std::endl;
         }
 
         entry.push( right(index) );
         entry.push( left(index) );
-        queue.push( std::move(entry) );
+        push(queue, std::move(entry) );
 
         // search(entry, out);
         break;
@@ -276,14 +317,15 @@ struct Lang
       case 3: // STAR - search contained node, then STAR again
         entry.push( index );
         entry.push( left(index) );
-        queue.push( std::move(entry) );
+
+        push(queue, std::move(entry) );
 
         // search(entry, out);
         break;
 
       case 4: // NONTERM - add pointed-to index, add to output for next round
         entry.push( lang[left(index)] );
-        out.push( std::move(entry) );
+        push(out, std::move(entry) );
         break;
 
       default: // TOKENS - check entry's token, if front
@@ -291,12 +333,14 @@ struct Lang
         if( entry.tokens.empty() ) // waiting for token... put back
         {
           entry.push( index );
-          out.push( std::move(entry) );
+
+          push(out, std::move(entry));
           // std::cout << "added " << out.front();
-        } else if( entry.tokens.front() == lang[index] )
+        } else if( entry.tokens->value == lang[index] )
         {
-          entry.tokens.pop();
-          queue.push( std::move(entry) );
+          entry.pop_token();
+
+          push(queue, std::move(entry));
           // search(entry, out);
         }
         break;
@@ -304,13 +348,13 @@ struct Lang
   }
 
 
-  bool set_nullable(int i, stack<std::pair<int, bool>>& prev)
+  bool set_nullable(int i, std::vector<std::pair<int, bool>>& prev)
   {
-    for( auto it = prev.begin(); it != prev.end(); ++it )
+    for( auto& x : prev )
     {
-      if( it->first == i )
+      if( x.first == i )
       {
-        return it->second;
+        return x.second;
       }
     }
 
@@ -319,35 +363,37 @@ struct Lang
     switch( lang[i] )
     {
       case 0: // EMPTY
-        prev.push(std::make_pair(i, true));
+        prev.emplace_back(i, true);
         break;
 
       case 1: // OR
         l = set_nullable(left(i), prev);
         r = set_nullable(right(i), prev);
-        prev.push(std::make_pair(i, l || r));
+
+        prev.emplace_back(i, l || r);
         break;
 
       case 2: // AND
         l = set_nullable(left(i), prev);
         r = set_nullable(right(i), prev);
-        prev.push(std::make_pair(i, l && r));
+
+        prev.emplace_back(i, l && r);
         break;
 
       case 3: // STAR
-        prev.push(std::make_pair(i, true));
+        prev.emplace_back(i, true);
         break;
 
       case 4: // Nonterminal
-        prev.push(std::make_pair(i, false));
+        prev.emplace_back(i, false);
         break;
 
       default: // tokens
-        prev.push(std::make_pair(i, false));
+        prev.emplace_back(i, false);
         break;
     }
 
-    return prev.front().second;
+    return prev.back().second;
   }
 
 
@@ -355,7 +401,7 @@ struct Lang
   {
     if( e.tokens.empty() )
     {
-      for( auto it = e.stk.begin(); it != e.stk.end(); ++it )
+      for( auto it = e.stack_begin(); it != e.stack_end(); ++it )
       {
         if( !nullable[*it] ) // requires tokens to complete
         {
@@ -395,10 +441,12 @@ struct Lang
 template<size_t N, typename... Us>
 Lang<N> make_lang(Us&&... us)
 {
-  auto nil = make_nil<int>(0);
-  auto entry_nil = make_nil<typename Lang<N>::entry_t>(0, nil);
+  using entry_t = typename Lang<N>::entry_t;
+
+  auto* nil = new hydra<int>(0);
+  auto* nil_entry = new hydra<entry_t>(std::move(entry_t(nil)));
+
   return Lang<N>{{std::forward<Us>(us)...},
-                  nil,
-                  entry_nil,
-                  entry_nil};
+                 std::unique_ptr<hydra<int>>(nil),
+                 std::unique_ptr<hydra<entry_t>>(nil_entry)};
 }
