@@ -13,7 +13,7 @@ struct hydras
   int size;
   int filled;
   T value;
-  bool marked;
+  int marked;
 
   hydras()
   : children(new std::unique_ptr<hydra>[N])
@@ -36,12 +36,23 @@ struct hydras
   ~hydras(){}
 
 
+  void block()
+  {
+    marked |= 1;
+  }
+
+  bool dead()
+  {
+    return marked & 1;
+  }
+
+
   // marks node and all below
   void mark()
   {
     if( !marked )
     {
-      marked = true;
+      marked |= 2;
       if( next != nullptr )
       {
         next->mark();
@@ -54,7 +65,7 @@ struct hydras
   {
     if( marked )
     {
-      this->marked = false;
+      this->marked &= ~2;
       if( next != nullptr )
       {
         next->unmark();
@@ -71,9 +82,10 @@ struct hydras
       {
         if( children[i] != nullptr )
         {
-          if( !children[i]->marked )
+          if( !( children[i]->marked & 2 ) )
           {
-            children[i].reset(nullptr);
+            children[i]->children.reset(nullptr);
+            children[i]->block();
           } // else   // clear internal unmarked nodes?  might not need
           //  {
           //    children[i]->clear_unmarked();

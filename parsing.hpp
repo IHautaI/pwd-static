@@ -3,14 +3,25 @@
 #include <vector>
 #include <algorithm>
 #include <deque>
+#include <set>
 
 #include "heads.hpp"
 
 template<size_t N>
-using hydra = hydras<N, int>;
+using hydra = hydras<N, std::pair<int, int>>;
 
 template<size_t N>
-using head = heads<N, int>;
+using head = heads<N, std::pair<int, int>>;
+
+template<size_t N>
+using jumps = heads<N, hydra*>;
+
+// for set comparison
+bool operator<(const std::pair<int,int>& a, const std::pair<int,int>& b)
+{
+  return a.first < b.first || (a.first == b.first && a.second < b.second);
+}
+
 
 /*
 *  Types:
@@ -31,7 +42,12 @@ struct Lang
   struct entry_t
   {
     head<2> stack;
-    head<1> tokens;
+    jumps<1> jstack;
+
+    auto jump(const int t)
+    {
+      jstack.push(stack.children);
+    }
 
     friend std::ostream& operator<<(std::ostream& out, entry_t& e)
     {
@@ -53,11 +69,9 @@ struct Lang
       return out;
     }
 
-    auto fork_to(const int i)
+    auto fork()
     {
-      auto e = entry_t{stack, tokens};
-      e.stack.push(i);
-      return e;
+      return entry_t{stack, tokens};
     }
   };
   using queue_t = std::deque<entry_t>;
@@ -70,6 +84,7 @@ struct Lang
 
   queue_t queue;
   bool nullable[size];
+  std::set<std::pair<int,int>> kill;
 
 
 
@@ -117,19 +132,18 @@ struct Lang
   void reset()
   {
     queue.clear();
-    stack_nil.reset(new hydra<2>());
-    token_nil.reset(new hydra<1>());
-    auto start = head<2>(stack_nil.get());
-    start.push(0);
-    queue.push_front(entry_t{start, token_nil.get()});
+    // nil.reset(new hydra<2>());
+    auto start = head<2>(nil.get());
+    // start.push(0);  redo so first splice uses 0 for position?
+    queue.push_front(entry_t{start});
   }
 
 
   std::ostream& print(std::ostream& out)
   {
-    for( auto ele = queue.begin(); ele != queue.end(); ++ele )
+    for( auto& x : queue )
     {
-      out << *ele;
+      out << x;
     }
     return out;
   }
@@ -157,20 +171,33 @@ struct Lang
     stack_nil->unmark();
   }
 
+  bool same(const std::pair<int, int>& x)
+  {
+    return lang[x.first] == x.second;
+  }
+
 
   void add_token(const int t)
   {
-    if( !token_nil->empty() )
-    {
-      token_nil->splice(t);
-    }
+    // if( !token_nil->empty() )
+    // {
+    //   token_nil->splice(t);
+    // }
 
     for( auto& x : queue )
-    {
-      if( x.tokens.empty() )
+    { // all are at nonterminal jump or at a token consume step
+      if( same( x.value() ) ) // token
       {
-        x.tokens.push(t);
+        x.pop();
+        x.jump(t);
+      } else
+      {
+        x.jump(t);
       }
+      // if( x.tokens.empty() )
+      // {
+        // x.tokens.push(t);
+      // }
     }
   }
 
@@ -208,10 +235,9 @@ struct Lang
 
   // searches from last node in entry until
   // either dead-end, nonterminal reached
-  void search(entry_t& entry, queue_t& out)
+  bool search(entry_t& entry, queue_t& out)
   {
     // std::cout << "searching: " << entry << std::endl;
-
     if( entry.stack.empty() )
     {
       if( entry.tokens.empty() ) // add to out, could be exit,
@@ -221,7 +247,7 @@ struct Lang
         out.push_back(entry);
       }
 
-      return;
+      return true;
     }
 
     auto index = entry.stack.value();
