@@ -6,8 +6,11 @@
 
 #include "heads.hpp"
 
-using hydra = hydras<int>;
-using head = heads<int>;
+template<size_t N>
+using hydra = hydras<N, int>;
+
+template<size_t N>
+using head = heads<N, int>;
 
 /*
 *  Types:
@@ -27,8 +30,8 @@ struct Lang
 {
   struct entry_t
   {
-    head stack;
-    head tokens;
+    head<2> stack;
+    head<1> tokens;
 
     friend std::ostream& operator<<(std::ostream& out, entry_t& e)
     {
@@ -62,8 +65,8 @@ struct Lang
 
   // grouped for simple bracket-initialization
   int lang[size];
-  std::unique_ptr<hydra> stack_nil;
-  std::unique_ptr<hydra> token_nil;
+  std::unique_ptr<hydra<2>> stack_nil;
+  std::unique_ptr<hydra<1>> token_nil;
 
   queue_t queue;
   bool nullable[size];
@@ -83,7 +86,7 @@ struct Lang
 
   void init()
   {
-    auto start = head(stack_nil.get());
+    auto start = head<2>(stack_nil.get());
     start.push(0);
     queue.push_front(entry_t{start, token_nil.get()});
 
@@ -114,9 +117,9 @@ struct Lang
   void reset()
   {
     queue.clear();
-    stack_nil.reset(new hydra);
-    token_nil.reset(new hydra);
-    auto start = head(stack_nil.get());
+    stack_nil.reset(new hydra<2>());
+    token_nil.reset(new hydra<1>());
+    auto start = head<2>(stack_nil.get());
     start.push(0);
     queue.push_front(entry_t{start, token_nil.get()});
   }
@@ -397,6 +400,6 @@ Lang<N> make_lang(Us&&... us)
 
 
   return Lang<N>{{std::forward<Us>(us)...},
-                 std::make_unique<hydra>(),
-                 std::make_unique<hydra>()};
+                 std::make_unique<hydra<2>>(),
+                 std::make_unique<hydra<1>>()};
 }

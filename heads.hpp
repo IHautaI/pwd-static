@@ -1,9 +1,9 @@
 #include "hydras.hpp"
 
-template<typename T>
+template<size_t N, typename T>
 struct heads
 {
-  hydras<T>* children;
+  hydras<N,T>* children;
 
   void push(const T& t)
   {
@@ -42,7 +42,7 @@ struct heads
     children->clear_unmarked();
   }
 
-  heads(hydras<T>* n)
+  heads(hydras<N,T>* n)
   : children(n)
   {}
 };

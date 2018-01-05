@@ -3,10 +3,10 @@
 /*
 *  requires default-constructible value type T
 */
-template<typename T>
+template<size_t N, typename T>
 struct hydras
 {
-  using hydra = hydras<T>;
+  using hydra = hydras<N, T>;
 
   std::unique_ptr<std::unique_ptr<hydra>[]> children;
   hydra* next;
@@ -16,34 +16,24 @@ struct hydras
   bool marked;
 
   hydras()
-  : children()
+  : children(new std::unique_ptr<hydra>[N])
   , next(nullptr)
-  , size(0)
-  , filled(0)
+  , size(N)
+  , filled(N)
   , value()
   , marked(false)
   {}
 
   hydras(const T& t)
-  : children()
+  : children(new std::unique_ptr<hydra>[N])
   , next(nullptr)
-  , size(0)
-  , filled(0)
+  , size(N)
+  , filled(N)
   , value(t)
   , marked(false)
   {}
 
-  ~hydras()
-  {
-    // if( size > 0 )
-    // {
-    //   for( auto i = 0; i < size; ++i )
-    //   {
-    //     children[i].reset();
-    //   }
-    // }
-    // children.reset();
-  }
+  ~hydras(){}
 
 
   // marks node and all below
